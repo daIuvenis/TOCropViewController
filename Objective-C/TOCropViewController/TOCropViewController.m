@@ -107,13 +107,36 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     return [self initWithCroppingStyle:TOCropViewCroppingStyleDefault image:image];
 }
 
+- (instancetype)initWithSearchView:(UIView *)view image:(UIImage *)image
+{
+    self = [self initWithImage:image];
+    if (self) {
+        [self hideDefaultToolbar];
+        
+        [self.view addSubview:view];
+        view.translatesAutoresizingMaskIntoConstraints = NO;
+        CGFloat viewHeight = 132.0;
+        
+        [NSLayoutConstraint activateConstraints:@[
+            [view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+            [view.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+            [view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+            [view.heightAnchor constraintEqualToConstant:viewHeight]
+        ]];
+        [self addCustomButtons];
+    }
+    return self;
+}
+
 - (void)viewDidLoad
 {
     [super viewDidLoad];
 
     // Set up view controller properties
     self.transitioningDelegate = self;
-    self.view.backgroundColor = self.cropView.backgroundColor;
+    self.view.backgroundColor = [UIColor whiteColor];
+    self.cropView.backgroundColor = [UIColor whiteColor];
+    self.cropView.alwaysShowCroppingGrid = YES;
     
     BOOL circularMode = (self.croppingStyle == TOCropViewCroppingStyleCircular);
 
@@ -906,8 +929,33 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
             [self.navigationController popViewControllerAnimated:YES];
         }
         else {
-            [self.presentingViewController dismissViewControllerAnimated:YES completion:nil];
+            [self.presentingViewController dismissViewControllerAnimated:YES completion:^{
+                UINavigationController *navController = (UINavigationController *)self.presentingViewController;
+                [navController setNavigationBarHidden:NO animated:YES];
+                            
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"ReloadUIAfterCropCancel" object:nil];
+            }];
         }
+    }
+}
+
+- (void)saveButtonTapped {
+    CGRect cropFrame = self.cropView.imageCropFrame;
+    NSInteger angle = self.cropView.angle;
+    
+    UIImage *croppedImage = [self.image croppedImageWithFrame:cropFrame angle:angle circularClip:NO];
+    
+    UIImageWriteToSavedPhotosAlbum(croppedImage, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
+}
+
+- (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
+    if (error) {
+        NSLog(@"Error saving photo: %@", error.localizedDescription);
+    } else {
+        NSLog(@"Photo saved successfully");
+        [self.presentingViewController dismissViewControllerAnimated:YES completion:^{
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"ReloadUIAfterCropSave" object:nil];
+        }];
     }
 }
 
@@ -1079,6 +1127,13 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
     self.toolbar.cancelButtonColor = color;
 }
 
+- (void)hideDefaultToolbar {
+    if (self.toolbar) {
+        self.toolbar.hidden = YES;
+        [self.toolbar removeFromSuperview];
+    }
+}
+
 - (TOCropView *)cropView
 {
     // Lazily create the crop view in case we try and access it before presentation, but
@@ -1229,6 +1284,45 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
 - (void)setAngle:(NSInteger)angle
 {
     self.cropView.angle = angle;
+}
+
+- (void)addCustomButtons {
+    UIColor *buttonColor = [UIColor colorWithRed:67/255.0 green:11/255.0 blue:224/255.0 alpha:1.0];
+    
+    UIButton *saveButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [saveButton setTitle:@"Save" forState:UIControlStateNormal];
+    [saveButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    saveButton.backgroundColor = buttonColor;
+    saveButton.layer.cornerRadius = 3;
+    [saveButton addTarget:self action:@selector(saveButtonTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:saveButton];
+    
+    UIButton *cancelButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [cancelButton setTitle:@"Cancel" forState:UIControlStateNormal];
+    [cancelButton setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+    cancelButton.backgroundColor = [UIColor whiteColor];
+    cancelButton.layer.cornerRadius = 3;
+    cancelButton.layer.borderWidth = 1;
+    cancelButton.layer.borderColor = buttonColor.CGColor;
+    [cancelButton addTarget:self action:@selector(cancelButtonTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:cancelButton];
+    
+    saveButton.translatesAutoresizingMaskIntoConstraints = NO;
+    cancelButton.translatesAutoresizingMaskIntoConstraints = NO;
+    CGFloat width = 124.0;
+    CGFloat height = 32.0;
+    
+    [NSLayoutConstraint activateConstraints:@[
+        [saveButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [saveButton.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-9],
+        [saveButton.widthAnchor constraintEqualToConstant:width],
+        [saveButton.heightAnchor constraintEqualToConstant:height],
+        
+        [cancelButton.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [cancelButton.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-9],
+        [cancelButton.widthAnchor constraintEqualToConstant:width],
+        [cancelButton.heightAnchor constraintEqualToConstant:height],
+    ]];
 }
 
 - (NSInteger)angle

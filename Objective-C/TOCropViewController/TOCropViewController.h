@@ -96,6 +96,8 @@
  */
 @property (nonnull, nonatomic, readonly) UIImage *image;
 
+@property (nonnull, nonatomic, readonly) UIView *view;
+
 /**
  The minimum croping aspect ratio. If set, user is prevented from
  setting cropping rectangle to lower aspect ratio than defined by the parameter.
@@ -384,6 +386,8 @@
  @param image The image that will be cropped
  */
 - (nonnull instancetype)initWithCroppingStyle:(TOCropViewCroppingStyle)style image:(nonnull UIImage *)image NS_SWIFT_NAME(init(croppingStyle:image:));
+
+- (instancetype)initWithSearchView:(UIView *)view image:(UIImage *)image NS_SWIFT_NAME(init(view:image:));
 
 /**
  Commits the crop action as if user pressed done button in the bottom bar themself
