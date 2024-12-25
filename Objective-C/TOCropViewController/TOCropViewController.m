@@ -123,6 +123,7 @@ static const CGFloat kTOCropViewControllerToolbarHeight = 44.0f;
             [view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
             [view.heightAnchor constraintEqualToConstant:viewHeight]
         ]];
+
         [self addCustomButtons];
     }
     return self;
